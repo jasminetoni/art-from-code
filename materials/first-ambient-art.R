@@ -1,3 +1,5 @@
+# spatial exercise 1 
+
 library(dplyr)
 library(purrr)
 library(tibble)
@@ -14,9 +16,9 @@ x_coords <- seq(from = 0, to = 1, length.out = 800)
 y_coords <- seq(from = 0, to = 1, length.out = 800)
 canvas <- long_grid(x = x_coords, y = y_coords) 
 
-freq_spatial <- 10
-seed_spatial <- 100
-seed_palette <- 101
+freq_spatial <- 100
+seed_spatial <- 1000
+seed_palette <- 200
 
 dat <- canvas |> 
   mutate(
@@ -40,3 +42,4 @@ pic <- dat |>
   )
 
 plot(pic)
+

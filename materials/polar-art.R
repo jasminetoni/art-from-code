@@ -38,7 +38,7 @@ polar_art <- function(seed, n, palette) {
 }
 
 polar_art(
-  seed = 2, 
-  n = 50, 
-  palette = c("red", "black", "white")
+  seed = 10, 
+  n = 100, 
+  palette = c("dodgerblue", "magenta", "brown")
 )

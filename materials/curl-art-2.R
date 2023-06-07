@@ -91,3 +91,6 @@ ggsave(
   bg = "white"
 )
 toc()
+
+# for part one of spatial exercise 5:
+# curl-art-1.R took 1.802 seconds to render and curl-art-2.R took 0.421 seconds to render. 
