@@ -1,4 +1,3 @@
-
 library(tictoc)
 library(Rcpp)
 library(here)

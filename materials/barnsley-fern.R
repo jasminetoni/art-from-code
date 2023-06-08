@@ -4,45 +4,46 @@ library(tibble)
 library(purrr)
 library(dplyr)
 
-fern_transform <- function(coord, ind) {
-  
-  # coefficients for the stem function f_1
-  if(ind == 1) {
-    mat <- matrix(c(0, 0, 0, .16), 2, 2) # matrix to multiply
-    off <- c(0, 0)                       # offset vector to add
+# making a tree instead of a fern
+tree_transform <- function(coord, ind) {
+  # coefficients for the trunk function f_trunk
+  if (ind == 1) {
+    mat <- matrix(c(0, 0, 0, 0.16), 2, 2)
+    off <- c(0, 0)
   }
   
-  # coefficients for the small leaflet function f_2
-  if(ind == 2) {
-    mat <- matrix(c(.85, -.04, .04, .85), 2, 2)
-    off <- c(0, 1.6)                      
-  }
-  # coefficients for the right-side function f_3
-  if(ind == 3) {
-    mat <- matrix(c(.2, .23, -.26, .22), 2, 2)
-    off <- c(0, 1.6)                      
+  # coefficients for the left branch function f_left_branch
+  if (ind == 2) {
+    mat <- matrix(c(-0.15, 0.28, 0.26, 0.24), 2, 2)
+    off <- c(0, 0.44)
   }
   
-  # coefficients for the left-side function f_4
-  if(ind == 4) {
-    mat <- matrix(c(-.15, .26, .28, .24), 2, 2)
-    off <- c(0, .44)                     
+  # coefficients for the right branch function f_right_branch
+  if (ind == 3) {
+    mat <- matrix(c(0.15, 0.28, -0.26, 0.24), 2, 2)
+    off <- c(0, 0.44)
   }
   
-  # return the affine transformed coords
+  # coefficients for the leaf function f_leaf
+  if (ind == 4) {
+    mat <- matrix(c(0.85, 0.04, -0.04, 0.85), 2, 2)
+    off <- c(0, 1.6)
+  }
+  
+  # return the affine transformed coordinates
   coord <- mat %*% coord + off
   return(coord)
 }
 
-fern_chaos <- function(iterations = 10000, seed = NULL) {
-  if(!is.null(seed)) set.seed(seed)
+tree_chaos <- function(iterations = 10000, seed = NULL) {
+  if (!is.null(seed)) set.seed(seed)
   
   # which transformation to apply at each iteration
   transform_index <- sample(
     x = 1:4, 
     size = iterations, 
-    replace= TRUE, 
-    prob = c(.01, .85, .07, .07)
+    replace = TRUE, 
+    prob = c(0.02, 0.45, 0.45, 0.08)
   )
   
   # initialise chaos game at the origin
@@ -53,9 +54,9 @@ fern_chaos <- function(iterations = 10000, seed = NULL) {
     do.call(cbind, lst)
   }
   
-  # iterate until done!
+  # iterate until done
   coord_matrix <- transform_index |>
-    accumulate(fern_transform, .init = start) |>
+    accumulate(tree_transform, .init = start) |>
     bind_to_column_matrix() 
   
   # tidy the output, add extra columns, and return
@@ -71,15 +72,18 @@ fern_chaos <- function(iterations = 10000, seed = NULL) {
   return(coord_df)
 }
 
-fern_dat <- fern_chaos(seed = 1)
+tree_dat <- tree_chaos(seed = 1)
 
-pic <- ggplot(fern_dat, aes(x, y, colour = factor(transform))) +
-  geom_point(size = 1, stroke = 0) +
+# pulling it all together and adding transformation key on the side
+pic <- ggplot(tree_dat, aes(x, y, colour = factor(transform))) +
+  geom_point(size = 2, stroke = 0.1, alpha = 0.5) +
   coord_equal() +
-  theme_void() + 
+  theme_void() +
   guides(colour = guide_legend(
-    title = "transformation", 
-    override.aes = list(size = 5))
-  )
+    title = "Transformation",
+    override.aes = list(size = 2)
+  ))
 
 plot(pic)
+
+

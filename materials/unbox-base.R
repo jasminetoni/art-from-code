@@ -116,3 +116,87 @@ toc()
 
 
 
+
+
+
+
+
+# load in packages
+library(ggplot2)
+library(tibble)
+library(purrr)
+library(dplyr)
+library(tictoc)
+library(ggthemes)
+library(here)
+
+# sampling a color palette
+sample_canva2 <- function(seed = NULL, n = 4) {
+  if (!is.null(seed)) set.seed(seed)
+  sample(ggthemes::canva_palettes, 1)[[1]] |> (\(x) colorRampPalette(x)(n))()
+}
+
+# list of variant functions for transformation that I want
+funs <- list(
+  function(point) point + (sum(point ^ 2)) ^ (1 / 3),
+  function(point) sin(point),
+  function(point) 2 * sin(point)
+)
+
+# updated the custom_transform function
+custom_transform <- function(point) {
+  point + (sum(point ^ 2)) ^ (1 / 3) * 0.5
+}
+
+# also updated the unboxer_custom function
+unboxer_custom <- function(iterations, seed = NULL) {
+  if (!is.null(seed)) set.seed(seed)
+  
+  point0 <- matrix(data = runif(3, min = -1, max = 1), nrow = 1, ncol = 3)
+  points <- accumulate(rep(1, iterations), ~ custom_transform(.x), .init = point0)
+  
+  points <- matrix(unlist(points), ncol = 3, byrow = TRUE)
+  points <- cbind(points, c(0, rep(1, iterations)), c(0, rep(1, iterations)))
+  return(points)
+}
+
+# function to generate the final plot
+unbox_art <- function(data, seed = NULL, size = 1) {
+  data <- data |> as.data.frame() |> as_tibble()
+  names(data) <- c("x", "y", "c", "l", "t")[1:ncol(data)]
+  shades <- sample_canva2(seed)
+  
+  ggplot(data, aes(x, y, colour = c)) +
+    geom_point(
+      size = size,
+      stroke = 0,
+      show.legend = FALSE
+    ) +
+    theme_void() +
+    coord_equal(xlim = c(-4, 4), ylim = c(-4, 4)) +
+    scale_colour_gradientn(colours = shades) +
+    scale_x_continuous(expand = c(0, 0)) +
+    scale_y_continuous(expand = c(0, 0)) +
+    theme(panel.background = element_rect(fill = shades[1], colour = shades[1]))
+}
+
+tic()
+
+seed <- 1234
+
+# generate transformation points and make the plot
+pic <- unboxer_custom(1000000, seed = seed) |> unbox_art(seed = seed, size = 2)
+fname <- paste0("unboxer-custom-", seed, ".png")
+
+# save plot as image file
+ggsave(
+  filename = here("output", fname),
+  plot = pic,
+  width = 2000,
+  height = 2000,
+  units = "px",
+  dpi = 300
+)
+
+toc()
+
