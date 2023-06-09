@@ -1,8 +1,14 @@
 ---
 title: "Art From Code"
 author: Jasmine Toni
-format: html
-editor: visual
+format: 
+  html:
+    toc: true
+    toc-location: left
+    theme: yeti
+execute: 
+  message: false
+  warning: false
 ---
 
 # Art From Code
@@ -195,6 +201,7 @@ Part three: Perhaps in an art context, artists will make multiple versions of th
 ```{r sample-named-colors}
 # call in library
 library(ggthemes)
+library(scales)
 
 # the original function from the first session
 sample_canva <- function(seed = NULL) {
@@ -404,7 +411,7 @@ plot <- plot +
 print(plot)
 ```
 
-# Spatial Noise Tricks 
+# Spatial Noise Tricks
 
 ## Exercise 1
 
@@ -436,6 +443,7 @@ seed_spatial <- 1001
 # seed for random palette generation
 seed_palette <- 201
 
+# setting dat function
 dat <- canvas |> 
   mutate(
     paint = gen_perlin(
@@ -445,7 +453,8 @@ dat <- canvas |>
       seed = seed_spatial
     )
   )
-  
+
+# now setting pic function  
 pic <- dat |>
   ggplot(aes(x, y, fill = paint)) + 
   geom_raster(show.legend = FALSE) +
@@ -544,7 +553,7 @@ ggsave(
 
 Part two
 
-```{r unique-filname}
+```{r unique-filename}
 # import libraries
 library(dplyr)
 library(purrr)
@@ -734,79 +743,37 @@ fractal_art(
 
 Part three
 
-```{r modified-fractal-art}
-# idea 3 (fractal art)
-
-# load in library
-library(ggplot2)
-library(ggthemes)
-library(dplyr)
-library(fracture)
-
-# define sample_canva
-sample_canva <- function(seed = NULL) {
-  if (!is.null(seed))
-    set.seed(seed)
-  sample(ggthemes::canva_palettes, 1)[[1]]
+```{r custom-fracture}
+custom_fracture <- function(x...) {
+  fracture(
+    my_gain = function(strength) {strength * 0.5},
+    my_frequency = function(frequency) {frequency / 2 + 2},
+    noise = gen_perlin, 
+    fractal = fbm,
+    x = x * log10(x)
+  )
 }
 
-# define blank_canvas
-blank_canvas <- expand.grid(
-  x = seq(from = 0, to = 1, length.out = 2000),
-  y = seq(from = 0, to = 1, length.out = 2000)
-)
-
-# define plot_painted_canvas
-plot_painted_canvas <- function(canvas, palette = NULL) {
-  if (is.null(palette)) {
-    palette <- c("#e5ddc8", "#01949a", "#004369", "#db1f48")
-  }
-  ggplot(data = canvas, aes(x, y)) +
-    geom_raster(aes(fill = paint), show.legend = FALSE) +
-    theme_void() +
-    coord_equal() +
-    scale_x_continuous(expand = c(0, 0)) +
-    scale_y_continuous(expand = c(0, 0)) +
-    scale_fill_gradientn(colours = palette)
-}
-
-# define fractal_art function with customizable gain and frequency functions
 fractal_art <- function(fractal, generator, palette = NULL, ...) {
-  canvas <- blank_canvas %>%
-    dplyr::mutate(
-      paint = fracture::fracture(
-        noise = !!generator,
-        fractal = !!fractal,
-        x = rep(seq(from = 0, to = 1, length.out = 2000), 2000),
-        y = rep(seq(from = 0, to = 1, length.out = 2000), each = 2000),
+  blank_canvas |>
+    mutate(
+      paint = fracture(
+        noise = my_generator,
+        fractal = fractal,
+        x = x, 
+        y = y, 
         ...
       )
-    )
-  
-  plot_painted_canvas(canvas, palette)
+    ) |>
+    plot_painted_canvas(palette = palette)
 }
 
-# define my custom generator function
-my_generator <- function(x, y, gain, frequency, ...) {
-}
+# dat <- tibble(
+  # x = seq(0, 10, length.out = 1000),
+  # y8 = fracture(x = x, noise = gen_perlin, fractal = fbm, octaves = 8))
 
-# define custom gain function
-my_gain <- function(x, y) {
-}
-
-# define custom frequency function
-my_frequency <- function(x, y) {                                                                      
-}
-
-# specify color palette
-palette <- c("#ff0000", "#00ff00", "#0000ff")
-
-# plot the fractal art with customized gain and frequency functions
-fractal_art(
-  fractal = list(gain = my_gain, frequency = my_frequency),
-  generator = my_generator,
-  palette = palette
-)
+gf <- function(x) x / log10(x)
+fractal_art(ridged, gen_perlin, seed = 2, octaves = 3, my_gain = gf)
 ```
 
 Part four
@@ -838,172 +805,7 @@ cat(sentence)
 
 ## Exercise 4
 
-Part one: curl-art-1.R took 1.802 seconds to render and curl-art-2.R took 0.421 seconds to render, so the difference is 1.381 seconds, which is relatively large proportion. The two codes are copied below.
-
-```{r curl-art-1}
-# import libraries
-library(dplyr)
-library(purrr)
-library(tibble)
-library(ggplot2)
-library(ggthemes)
-library(ambient)
-library(here)
-library(tictoc)
-
-# define curl_data function
-curl_data <- function(
-    data, 
-    iterations = 50,
-    step_size = .001,
-    ...
-) {
-  
-  update <- function(current_state, iteration, ...) {
-    curl <- curl_noise(
-      x = current_state$x, 
-      y = current_state$y,
-      generator = fracture,
-      ...
-    )
-    next_state <- current_state |>
-      mutate(
-        x = x + curl$x * step_size,
-        y = y + curl$y * step_size,
-        time = time + 1
-      )
-    return(next_state)
-  }
-  
-  data |> 
-    mutate(id = row_number(), time = 1) |>
-    accumulate(1:iterations, update, .init = _, ...) |>
-    bind_rows()
-}
-
-curl_art <- function(...) {
-  curl_data(...) |> 
-    ggplot(aes(x, y, group = id)) + 
-    geom_path() +
-    theme_void() + 
-    coord_equal() 
-}
-
-smol_grid <- long_grid(x = 1:20, y = 1:20)
-
-pic <- smol_grid |>
-  mutate(x = normalise(x), y = normalise(y)) |>
-  curl_art(noise = gen_simplex, fractal = fbm, octaves = 4, freq_init = .5)
-
-tic()
-ggsave(
-  filename = here("output", "curl-art-1.png"), 
-  plot = pic,
-  width = 2000,
-  height = 2000,
-  units = "px",
-  dpi = 300,
-  bg = "white"
-)
-toc()
-```
-
-```{r curl-art-2}
-library(dplyr)
-library(purrr)
-library(tibble)
-library(ggplot2)
-library(ggthemes)
-library(ambient)
-library(here)
-library(tictoc)
-
-# define curl_data function
-curl_data <- function(
-    data, 
-    iterations = 50,
-    step_size = .001,
-    ...
-) {
-  
-  update <- function(current_state, iteration, ...) {
-    curl <- curl_noise(
-      x = current_state$x, 
-      y = current_state$y,
-      generator = fracture,
-      ...
-    )
-    next_state <- current_state |>
-      mutate(
-        x = x + curl$x * step_size,
-        y = y + curl$y * step_size,
-        time = time + 1
-      )
-    return(next_state)
-  }
-  
-  data |> 
-    mutate(id = row_number(), time = 1) |>
-    accumulate(1:iterations, update, .init = _, ...) |>
-    bind_rows()
-}
-
-curl_art <- function(...) {
-  curl_data(...) |> 
-    ggplot(aes(x, y, group = id)) + 
-    geom_path() +
-    theme_void() + 
-    coord_equal() 
-}
-
-custom_curl_data <- function(data) {
-  curl_data(
-    data = data,
-    iterations = 80, 
-    octaves = 10,
-    fractal = ridged,
-    noise = gen_cubic,
-    freq_init = 1,
-    frequency = ~ . * 1.2,
-    gain_init = 1,
-    gain = ~ . * .9,
-    seed = 1
-  )
-}
-
-circle <- function(n = 100) {
-  tibble(
-    theta = 2 * pi * (1:n) / n, 
-    x = cos(theta),
-    y = sin(theta)
-  )
-}
-
-dat1 <- circle(5000) |> 
-  custom_curl_data()
-
-dat2 <- circle(5000) |>
-  mutate(x = x * .99, y = y * .99) |>
-  custom_curl_data()
-
-pic <- ggplot(mapping = aes(x, y, group = time)) +
-  geom_polygon(data = dat1, fill = "#ffffff10") +
-  geom_polygon(data = dat2, fill = "#22222205") +
-  theme_void() +
-  coord_equal()
-
-tic()
-ggsave(
-  filename = here("output", "curl-art-2.png"), 
-  plot = pic,
-  width = 2000,
-  height = 2000,
-  units = "px",
-  dpi = 300,
-  bg = "white"
-)
-toc()
-```
+Part one: curl-art-1.R took 1.802 seconds to render and curl-art-2.R took 0.421 seconds to render, so the difference is 1.381 seconds, which is relatively large proportion.
 
 Part two
 
@@ -1396,19 +1198,29 @@ toc()
 ## Exercise 3
 
 ```{r unbox-fast}
-# made my changes directly to unbox-fast.cpp 
-# load in libraries
-library(tictoc)
-library(Rcpp)
-library(here)
-
-# source for the cpp
-sourceCpp(file = here("materials", "unbox-fast.cpp"))
-
-tic() 
-set.seed(999)
-dat <- unboxer_rcpp(1000000, layers = 2)
-toc() 
+unbox_art <- function(data, seed = NULL, size = 1) {
+  
+  # convert to data frame and sample a palette
+  data <- data |> as.data.frame() |> as_tibble()
+  names(data) <- c("x", "y", "c", "l", "t")[1:ncol(data)]
+  shades <- sample_canva2(seed)
+  
+  # render image as a scatter plot
+  ggplot(data, aes(x, y, colour = c)) +
+    geom_point(
+      size = size,
+      stroke = 0,
+      show.legend = FALSE
+    ) + 
+    theme_void() + 
+    coord_equal(xlim = c(-4, 4), ylim = c(-4, 4)) + 
+    scale_colour_gradientn(colours = shades) + 
+    scale_x_continuous(expand = c(0, 0)) +
+    scale_y_continuous(expand = c(0, 0)) +
+    theme(panel.background = element_rect(
+      fill = shades[1], colour = shades[1]
+    ))
+}
 ```
 
 ## Exercise 4
@@ -1419,28 +1231,35 @@ library(tictoc)
 library(Rcpp)
 library(here)
 
-# source cpp for R
+# sourcing from c++ code in a cpp file
 sourceCpp(file = here("materials", "unbox-grid.cpp"))
 
-# making random palettes
+# color palette
 sample_canva2 <- function(seed = NULL, n = 4) {
   if(!is.null(seed)) set.seed(seed)
   sample(ggthemes::canva_palettes, 1)[[1]] |>
     (\(x) colorRampPalette(x)(n))()  
 }
 
+# making the pretty boxes function and saying whats apart of it
 pretty_boxes <- function(
     seed,
-    iterations = 100000000, 
-    layers = 5, 
-    pixels = 5000, 
-    background = "beige",
+    # changed the amount of iterations
+    iterations = 10000000, 
+    # changed the amount of layers
+    layers = 4, 
+    # changed how many pixels
+    pixels = 3000, 
+    # changed the background color
+    background = "cyan",
+    # changed the border and trim
     border = 3,
-    trim = .001
+    trim = .002
 ) {
   
   set.seed(seed)
   
+  # define what the mat function is
   mat <- unboxer_grid(
     iterations = iterations, 
     layers = layers, 
@@ -1448,7 +1267,8 @@ pretty_boxes <- function(
     border = border
   )
   
-  shades <- c(background, sample_canva2(seed, n = 1500))
+  # defining shades
+  shades <- c(background, sample_canva2(seed, n = 1000))
   
   zlim <- quantile(mat, c(trim, 1 - trim))
   mat[mat < zlim[1]] <- zlim[1]
@@ -1466,6 +1286,136 @@ pretty_boxes <- function(
 }
 
 tic()
-pretty_boxes(908)
+pretty_boxes(100, iterations = 1000000)
 toc()
 ```
+
+# Putting It all Together
+
+```{r pulling-it-all-together}
+# load in the libraries
+library(ggplot2)
+library(tibble)
+library(purrr)
+library(dplyr)
+library(tictoc)
+library(ggthemes)
+library(here)
+library(ambient)
+library(gridExtra)
+
+# color palette function
+sample_canva2 <- function(seed = NULL, n = 4) {
+  if (!is.null(seed)) set.seed(seed)
+  sample(ggthemes::canva_palettes, 1)[[1]] |> (\(x) colorRampPalette(x)(n))()
+}
+
+# list of variant functions for transformation
+funs <- list(
+  function(point) point + (sum(point ^ 2)) ^ (1 / 3),
+  function(point) sin(point),
+  function(point) 2 * sin(point)
+)
+
+# custom_transform function (updated tho)
+custom_transform <- function(point) {
+  point + (sum(point ^ 2)) ^ (1 / 3) * 0.5
+}
+
+# updated unboxer_custom function
+unboxer_custom <- function(iterations, seed = NULL) {
+  if (!is.null(seed)) set.seed(seed)
+  
+  point0 <- matrix(data = runif(3, min = -1, max = 1), nrow = 1, ncol = 3)
+  points <- accumulate(rep(1, iterations), ~ custom_transform(.x), .init = point0)
+  
+  points <- matrix(unlist(points), ncol = 3, byrow = TRUE)
+  points <- cbind(points, c(0, rep(1, iterations)), c(0, rep(1, iterations)))
+  return(points)
+}
+
+# function to make the final plot
+unbox_art <- function(data, seed = NULL, size = 1) {
+  data <- data |> as.data.frame() |> as_tibble()
+  names(data) <- c("x", "y", "c", "l", "t")[1:ncol(data)]
+  shades <- sample_canva2(seed)
+  
+  ggplot(data, aes(x, y, colour = c)) +
+    geom_point(
+      size = size,
+      stroke = 0,
+      show.legend = FALSE
+    ) +
+    theme_void() +
+    coord_equal(xlim = c(-4, 4), ylim = c(-4, 4)) +
+    scale_colour_gradientn(colours = shades) +
+    scale_x_continuous(expand = c(0, 0)) +
+    scale_y_continuous(expand = c(0, 0)) +
+    theme(panel.background = element_rect(fill = shades[1], colour = shades[1]))
+}
+
+tic()
+
+# parameters
+seed <- 1234
+iterations <- 1000000
+size <- 2
+
+# generate transformation points
+points <- unboxer_custom(iterations, seed = seed)
+
+# convert points to data frame
+data <- as.data.frame(points)
+colnames(data) <- c("x", "y", "c", "l", "t")
+data <- as_tibble(data)
+
+# make first plot with unbox_art function
+pic1 <- unbox_art(data, seed = seed, size = size)
+
+# second plot code
+sample_canva <- function(seed = NULL) {
+  if(!is.null(seed)) set.seed(seed)
+  sample(ggthemes::canva_palettes, 1)[[1]]
+}
+
+# setting the dimensions of the "canvas"
+x_coords <- seq(from = 0, to = 1, length.out = 800)
+y_coords <- seq(from = 0, to = 1, length.out = 800)
+canvas <- long_grid(x = x_coords, y = y_coords) 
+
+# parameters for gen_perlin
+freq_spatial <- 101
+seed_spatial <- 1001
+seed_palette <- 201
+
+dat <- canvas |> 
+  mutate(
+    paint = gen_perlin(
+      x = x, 
+      y = y, 
+      frequency = freq_spatial, 
+      seed = seed_spatial
+    )
+  )
+  
+# make second plot
+pic2 <- dat |>
+  ggplot(aes(x, y, fill = paint)) + 
+  geom_raster(show.legend = FALSE) +
+  theme_void() + 
+  coord_equal() +
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_fill_gradientn(
+    colours = sample_canva(seed_palette)
+  )
+
+# combine and display the plots
+grid.arrange(pic1, pic2, ncol = 2)
+
+toc()
+```
+
+# Summary of My Process
+
+During this process of creating regenerative art, I have learned a lot although some things were familiar to me. At first, I was completely lost because this class is R for statistics and I have no experience with making art -- we always say in class that statistics is art and I understand that more now. Statistics is like art because you can be flexible with functions and coding allows you to be creative when doing math. Additionally, in some ways, the graphs that we make in class somewhat resemble art; I felt comforted when we imported familiar libraries and used familiar functions in this project, such as dplyr and ggthemes. The hardest part about this project was getting used to the new functions that we had to use. Following along with the examples and doing the exercises wasn't hard, but it was challenging when we had to create new functions. This was especially hard for me because I was having difficulties making a function that I didn't have a complete understanding of. I went down many rabbit holes, but it ended up alright. This project definitely took me the most time, even more than the midterm, but I have learned a lot through the process and am proud of the work I have produced.
